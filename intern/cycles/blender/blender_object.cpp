@@ -17,6 +17,7 @@
 #include "camera.h"
 #include "integrator.h"
 #include "graph.h"
+#include "levelset.h"
 #include "light.h"
 #include "mesh.h"
 #include "object.h"
@@ -56,6 +57,18 @@ bool BlenderSync::BKE_object_is_modified(BL::Object b_ob)
 	}
 
 	return false;
+}
+
+bool BlenderSync::object_has_level_set(BL::Object b_ob)
+{
+       BL::ID b_ob_data = b_ob.data();
+       if (!b_ob_data) return false;
+
+       char filename[1024];
+       PointerRNA cyc = RNA_pointer_get(&b_ob.ptr, "cycles");
+       RNA_string_get(&cyc, "filename", filename);
+       printf("Filename returnes as %s!\n", filename);
+       return strcmp(filename, "");
 }
 
 bool BlenderSync::object_is_mesh(BL::Object b_ob)
@@ -247,6 +260,16 @@ Object *BlenderSync::sync_object(BL::Object b_parent, int persistent_id[OBJECT_P
 			sync_light(b_parent, persistent_id, b_ob, tfm, use_portal);
 
 		return NULL;
+	}
+
+	if(object_has_level_set(b_ob)) {
+		char filename[1024];
+		PointerRNA cyc = RNA_pointer_get(&b_ob.ptr, "cycles");
+		RNA_string_get(&cyc, "filename", filename);
+		printf("File %s should be opened, enum is %d!\n", filename, RNA_enum_get(&cyc, "filetype"));
+		OpenVDB_file_read(filename, scene);
+		//OpenVDB_use_level_mesh(scene);
+		//return NULL;
 	}
 
 	/* only interested in object that we can create meshes from */

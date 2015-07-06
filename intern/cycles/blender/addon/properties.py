@@ -21,11 +21,17 @@ from bpy.props import (BoolProperty,
                        EnumProperty,
                        FloatProperty,
                        IntProperty,
+                       StringProperty,
                        PointerProperty)
 
 # enums
 
 import _cycles
+
+enum_openvdb_types = (
+        ('LEVEL_SET', "Level Set", "Grid contains a level set"),
+        ('PROPERTY', "Property", "Grid contains a volumetric property")
+        )
 
 enum_devices = (
     ('CPU', "CPU", "Use CPU for rendering"),
@@ -860,7 +866,7 @@ class CyclesMeshSettings(bpy.types.PropertyGroup):
         del bpy.types.MetaBall.cycles
 
 
-class CyclesObjectBlurSettings(bpy.types.PropertyGroup):
+class CyclesObjectSettings(bpy.types.PropertyGroup):
 
     @classmethod
     def register(cls):
@@ -869,6 +875,25 @@ class CyclesObjectBlurSettings(bpy.types.PropertyGroup):
                 name="Cycles Object Settings",
                 description="Cycles object settings",
                 type=cls,
+                )
+
+        cls.filename = StringProperty(
+                name="OpenVDB File",
+                description="The OpenVDB Grid to use for rendering",
+                subtype="FILE_PATH",
+                )
+
+        cls.filetype = EnumProperty(
+                name="File Type",
+                description="Type of the OpenVDB grid",
+                items=enum_openvdb_types,
+                default='LEVEL_SET'
+                )
+
+        cls.prop_name = StringProperty(
+                name="Property Name",
+                description="Name of the Property",
+                default="density"
                 )
 
         cls.use_motion_blur = BoolProperty(

@@ -41,6 +41,8 @@ class Device;
 class DeviceInfo;
 class Film;
 class Integrator;
+class LevelSet;
+class LevelSetManager;
 class Light;
 class LightManager;
 class LookupTables;
@@ -169,6 +171,7 @@ public:
 	vector<Shader*> shaders;
 	vector<Light*> lights;
 	vector<ParticleSystem*> particle_systems;
+	vector<LevelSet*> level_sets;
 
 	/* data managers */
 	ImageManager *image_manager;
@@ -180,6 +183,7 @@ public:
 	CurveSystemManager *curve_system_manager;
 	BakeManager *bake_manager;
 	VolumeManager *volume_manager;
+	LevelSetManager *level_set_manager;
 
 	/* default shaders */
 	int default_surface;

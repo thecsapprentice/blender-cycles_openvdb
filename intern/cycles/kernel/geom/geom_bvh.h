@@ -26,6 +26,8 @@
  * the code has been extended and modified to support more primitives and work
  * with CPU/CUDA/OpenCL. */
 
+#include "../render/levelset.h"
+
 CCL_NAMESPACE_BEGIN
 
 /* Don't inline intersect functions on GPU, this is faster */
@@ -219,6 +221,20 @@ CCL_NAMESPACE_BEGIN
 ccl_device_intersect bool scene_intersect(KernelGlobals *kg, const Ray *ray, const uint visibility, Intersection *isect,
 					 uint *lcg_state, float difl, float extmax)
 {
+	isect->t = ray->t;
+	isect->u = 0.0f;
+	isect->v = 0.0f;
+	isect->prim = PRIM_NONE;
+	isect->object = OBJECT_NONE;
+
+	bool level_set_hit = false;
+
+	if (kernel_data.tables.num_level_sets) {
+		for (int i = 0; i < kernel_data.tables.num_level_sets; i++) {
+			level_set_hit |= (((LevelSet*) kernel_data.tables.level_sets)+i)->intersect(ray, isect);
+		}
+	}
+
 #ifdef __OBJECT_MOTION__
 	if(kernel_data.bvh.have_motion) {
 #ifdef __HAIR__
@@ -226,29 +242,29 @@ ccl_device_intersect bool scene_intersect(KernelGlobals *kg, const Ray *ray, con
 			return bvh_intersect_hair_motion(kg, ray, isect, visibility, lcg_state, difl, extmax);
 #endif /* __HAIR__ */
 
-		return bvh_intersect_motion(kg, ray, isect, visibility);
+		return bvh_intersect_motion(kg, ray, isect, visibility) || level_set_hit;
 	}
 #endif /* __OBJECT_MOTION__ */
 
 #ifdef __HAIR__ 
 	if(kernel_data.bvh.have_curves)
-		return bvh_intersect_hair(kg, ray, isect, visibility, lcg_state, difl, extmax);
+		return bvh_intersect_hair(kg, ray, isect, visibility, lcg_state, difl, extmax) || level_set_hit;
 #endif /* __HAIR__ */
 
 #ifdef __KERNEL_CPU__
 
 #ifdef __INSTANCING__
 	if(kernel_data.bvh.have_instancing)
-		return bvh_intersect_instancing(kg, ray, isect, visibility);
+		return bvh_intersect_instancing(kg, ray, isect, visibility) || level_set_hit;
 #endif /* __INSTANCING__ */
 
-	return bvh_intersect(kg, ray, isect, visibility);
+	return bvh_intersect(kg, ray, isect, visibility) || level_set_hit;
 #else /* __KERNEL_CPU__ */
 
 #ifdef __INSTANCING__
-	return bvh_intersect_instancing(kg, ray, isect, visibility);
+	return bvh_intersect_instancing(kg, ray, isect, visibility) || level_set_hit;
 #else
-	return bvh_intersect(kg, ray, isect, visibility);
+	return bvh_intersect(kg, ray, isect, visibility) || level_set_hit;
 #endif /* __INSTANCING__ */
 
 #endif /* __KERNEL_CPU__ */

@@ -68,12 +68,6 @@ ccl_device bool BVH_FUNCTION_FULL_NAME(BVH)(KernelGlobals *kg,
 	Transform ob_tfm;
 #endif
 
-	isect->t = ray->t;
-	isect->u = 0.0f;
-	isect->v = 0.0f;
-	isect->prim = PRIM_NONE;
-	isect->object = OBJECT_NONE;
-
 #if defined(__KERNEL_DEBUG__)
 	isect->num_traversal_steps = 0;
 	isect->num_traversed_instances = 0;

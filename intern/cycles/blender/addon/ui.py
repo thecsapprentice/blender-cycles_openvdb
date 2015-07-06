@@ -639,6 +639,23 @@ class Cycles_PT_mesh_displacement(CyclesButtonsPanel, Panel):
         layout.prop(cdata, "dicing_rate")
 
 
+class CyclesObject_PT_openvdb(CyclesButtonsPanel, Panel):
+    bl_label = "OpenVDB Settings"
+    bl_context = "object"
+
+    @classmethod
+    def poll(cls, context):
+        ob = context.object
+        return CyclesButtonsPanel.poll(context) and ob  #and ob.type in {'EMPTY'}
+
+    def draw(self, context):
+        layout = self.layout
+        cob = context.object.cycles
+        layout.prop(cob, "filename")
+        layout.prop(cob, "filetype")
+        if cob.filetype in {'PROPERTY'}:
+            layout.prop(cob, "prop_name")
+
 class CyclesObject_PT_motion_blur(CyclesButtonsPanel, Panel):
     bl_label = "Motion Blur"
     bl_context = "object"

@@ -23,6 +23,7 @@
 #include "device.h"
 #include "film.h"
 #include "integrator.h"
+#include "levelset.h"
 #include "light.h"
 #include "mesh.h"
 #include "object.h"
@@ -54,6 +55,7 @@ Scene::Scene(const SceneParams& params_, const DeviceInfo& device_info_)
 	lookup_tables = new LookupTables();
 	film = new Film();
 	background = new Background();
+	level_set_manager = new LevelSetManager();
 	light_manager = new LightManager();
 	mesh_manager = new MeshManager();
 	object_manager = new ObjectManager();
@@ -91,6 +93,8 @@ void Scene::free_memory(bool final)
 		delete l;
 	foreach(ParticleSystem *p, particle_systems)
 		delete p;
+	foreach(LevelSet *s, level_sets)
+		delete s;
 
 	shaders.clear();
 	meshes.clear();
@@ -121,6 +125,7 @@ void Scene::free_memory(bool final)
 
 		lookup_tables->device_free(device, &dscene);
 		volume_manager->device_free(device, &dscene);
+		level_set_manager->device_free(device, &dscene);
 	}
 
 	if(final) {
@@ -138,6 +143,7 @@ void Scene::free_memory(bool final)
 		delete image_manager;
 		delete bake_manager;
 		delete volume_manager;
+		delete level_set_manager;
 	}
 }
 
@@ -249,6 +255,11 @@ void Scene::device_update(Device *device_, Progress& progress)
 
 	if(progress.get_cancel() || device->have_error()) return;
 
+	progress.set_status("Updating Level Sets");
+	level_set_manager->device_update(device, &dscene, this, progress);
+
+	if(progress.get_cancel() || device->have_error()) return;
+
 	if(device->have_error() == false) {
 		progress.set_status("Updating Device", "Writing constant memory");
 		device->const_copy_to("__data", &dscene.data, sizeof(dscene.data));
@@ -310,6 +321,7 @@ bool Scene::need_reset()
 		|| curve_system_manager->need_update
 		|| bake_manager->need_update
 		|| volume_manager->need_update
+	    || level_set_manager->need_update
 		|| film->need_update);
 }
 
@@ -328,6 +340,7 @@ void Scene::reset()
 	light_manager->tag_update(this);
 	particle_system_manager->tag_update(this);
 	curve_system_manager->tag_update(this);
+	level_set_manager->tag_update(this);
 }
 
 void Scene::device_free()

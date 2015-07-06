@@ -30,6 +30,7 @@ set(SRC
 	graph.cpp
 	image.cpp
 	integrator.cpp
+	levelset.cpp
 	light.cpp
 	mesh.cpp
 	mesh_displace.cpp
@@ -59,6 +60,7 @@ set(SRC_HEADERS
 	graph.h
 	image.h
 	integrator.h
+	levelset.h
 	light.h
 	mesh.h
 	nodes.h

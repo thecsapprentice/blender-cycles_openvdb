@@ -503,6 +503,8 @@ typedef ccl_addr_space struct Intersection {
 	int object;
 	int type;
 
+	float3 norm;
+	int shad;
 #ifdef __KERNEL_DEBUG__
 	int num_traversal_steps;
 	int num_traversed_instances;
@@ -517,11 +519,12 @@ typedef enum PrimitiveType {
 	PRIMITIVE_MOTION_TRIANGLE = 2,
 	PRIMITIVE_CURVE = 4,
 	PRIMITIVE_MOTION_CURVE = 8,
+	PRIMITIVE_LEVEL_SET = 16,
 
 	PRIMITIVE_ALL_TRIANGLE = (PRIMITIVE_TRIANGLE|PRIMITIVE_MOTION_TRIANGLE),
 	PRIMITIVE_ALL_CURVE = (PRIMITIVE_CURVE|PRIMITIVE_MOTION_CURVE),
 	PRIMITIVE_ALL_MOTION = (PRIMITIVE_MOTION_TRIANGLE|PRIMITIVE_MOTION_CURVE),
-	PRIMITIVE_ALL = (PRIMITIVE_ALL_TRIANGLE|PRIMITIVE_ALL_CURVE),
+	PRIMITIVE_ALL = (PRIMITIVE_ALL_TRIANGLE|PRIMITIVE_ALL_CURVE|PRIMITIVE_LEVEL_SET),
 
 	/* Total number of different primitives.
 	 * NOTE: This is an actual value, not a bitflag.
@@ -981,6 +984,8 @@ typedef struct KernelTables {
 	int beckmann_offset;
 	int num_volumes;
 	int density_index, pad2;
+	void *level_sets;
+	int num_level_sets;
 } KernelTables;
 
 typedef struct KernelData {

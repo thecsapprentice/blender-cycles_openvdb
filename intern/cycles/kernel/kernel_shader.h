@@ -74,6 +74,13 @@ ccl_device void shader_setup_from_ray(KernelGlobals *kg, ShaderData *sd,
 	ccl_fetch(sd, v) = isect->v;
 #endif
 
+	if(ccl_fetch(sd, type) & PRIMITIVE_LEVEL_SET) {
+		ccl_fetch(sd, shader) = isect->shad;
+		ccl_fetch(sd, Ng) = isect->norm;
+		ccl_fetch(sd, N) = isect->norm;
+		ccl_fetch(sd, P) = ray->P + ray->D * isect->t;
+	}
+
 #ifdef __HAIR__
 	if(ccl_fetch(sd, type) & PRIMITIVE_ALL_CURVE) {
 		/* curve */
