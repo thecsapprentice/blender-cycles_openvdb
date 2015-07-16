@@ -529,7 +529,7 @@ typedef enum PrimitiveType {
 	/* Total number of different primitives.
 	 * NOTE: This is an actual value, not a bitflag.
 	 */
-	PRIMITIVE_NUM_TOTAL = 4,
+	PRIMITIVE_NUM_TOTAL = 5,
 } PrimitiveType;
 
 #define PRIMITIVE_PACK_SEGMENT(type, segment) ((segment << 16) | type)
