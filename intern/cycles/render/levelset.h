@@ -37,6 +37,10 @@ void OpenVDB_file_info(const char* filename);
 LevelSet* OpenVDB_file_read(const char* filename, Scene* scene);
 void OpenVDB_use_level_mesh(Scene* scene);
 
+// If this value is too low, nasty artifacts appear
+// Too high, and render times are adversly affected
+#define OPENVDB_LEVELSET_SEARCH_ITERATIONS 1
+
 class LevelSet {
 public:
        LevelSet(openvdb::FloatGrid::Ptr gridPtr, int shader_);
@@ -49,7 +53,7 @@ public:
 	   openvdb::FloatGrid::Ptr grid;
        int shader;
 
-	   typedef openvdb::tools::LinearSearchImpl<openvdb::FloatGrid, 0, float> LinearSearchImpl;
+	   typedef openvdb::tools::LinearSearchImpl<openvdb::FloatGrid, OPENVDB_LEVELSET_SEARCH_ITERATIONS, float> LinearSearchImpl;
 	   typedef openvdb::math::Ray<float> vdb_ray_t;
        typedef openvdb::tools::LevelSetRayIntersector<openvdb::FloatGrid,
 	                                                  LinearSearchImpl,

@@ -159,7 +159,7 @@ bool LevelSet::intersect(const Ray* ray, Intersection *isect)
 		isect->u = isect->v = 1.0f;
 		isect->type = PRIMITIVE_LEVEL_SET;
 		isect->shad = shader;
-		isect->norm = normalize(make_float3(normal.x(), normal.y(), normal.z()));
+		isect->norm = make_float3(normal.x(), normal.y(), normal.z());
 		isect->prim = 0;
 		isect->object = 0;
 		return true;
