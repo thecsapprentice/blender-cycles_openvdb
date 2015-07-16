@@ -53,43 +53,50 @@ void OpenVDB_file_info(const char* filename)
 
 openvdb::FloatGrid::Ptr loaded_level_set;
 
-void OpenVDB_file_read(const char* filename, Scene* scene)
+LevelSet* OpenVDB_file_read(const char* filename, Scene* scene)
 {
 	using namespace openvdb;
 
 	OpenVDB_initialize();
-
+	//openvdb::FloatGrid::Ptr level_set_ptr;
 	if (!loaded_level_set.use_count()) {
-		try {
-			io::File file(filename);
-			file.open();
 
-			size_t size = file.getSize();
-			printf("Opening %s, is %lu bytes!\n", filename, size);
+	try {
+	  io::File file(filename);
+	  file.open();
+	  
+	  size_t size = file.getSize();
+	  printf("Opening %s, is %lu bytes!\n", filename, size);
 
-			for (io::File::NameIterator iter = file.beginName(); iter != file.endName(); ++iter) {
-				printf("Reading grid %s!\n", iter.gridName().c_str());
-
-				GridBase::Ptr grid = file.readGrid(iter.gridName());
-				grid->print();
-
-				if(grid->getGridClass() != GRID_LEVEL_SET)
-					continue;
-
-				if (grid->isType<FloatGrid>())
-					loaded_level_set = gridPtrCast<openvdb::FloatGrid>(grid);
-				else
-					printf("No FloatGrid, ignoring!\n");
-			}
-
-			file.close();
-		}
-		catch (const IoError &e) {
-			std::cerr << e.what() << "\n";
-		}
+	  for (io::File::NameIterator iter = file.beginName(); iter != file.endName(); ++iter) {
+	    printf("Reading grid %s!\n", iter.gridName().c_str());
+	    
+	    GridBase::Ptr grid = file.readGrid(iter.gridName());
+	    grid->print();
+	    
+	    if(grid->getGridClass() != GRID_LEVEL_SET)
+	      continue;
+	    
+	    if (grid->isType<FloatGrid>())
+	      loaded_level_set = gridPtrCast<openvdb::FloatGrid>(grid);
+	    else
+	      printf("No FloatGrid, ignoring!\n");
+	  }
+	  
+	  file.close();
+	}
+	catch (const IoError &e) {
+	  std::cerr << e.what() << "\n";
 	}
 
-	scene->level_sets.push_back(new LevelSet(loaded_level_set, 0));
+	}
+
+	return new LevelSet(loaded_level_set, 0);
+
+	//if( level_set_ptr.use_count() == 0 )
+	//  return NULL;
+	//else
+	//  return new LevelSet(level_set_ptr, 0);
 }
 
 void OpenVDB_use_level_mesh(Scene* scene)
@@ -145,8 +152,10 @@ bool LevelSet::intersect(const Ray* ray, Intersection *isect)
 	vdb_ray_t::Vec3Type pos, normal;
 	float t;
 
-	if(isector->intersectsWS(vdbray, pos, normal, t)) {
-		isect->t = t;
+	bool intersects = isector->intersectsWS(vdbray, pos, normal, t);
+
+	if(intersects) {
+                isect->t = t;
 		isect->u = isect->v = 1.0f;
 		isect->type = PRIMITIVE_LEVEL_SET;
 		isect->shad = shader;

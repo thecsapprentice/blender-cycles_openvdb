@@ -30,10 +30,11 @@ class Device;
 class DeviceScene;
 class Progress;
 class Scene;
+class LevelSet;
 
 void OpenVDB_initialize();
 void OpenVDB_file_info(const char* filename);
-void OpenVDB_file_read(const char* filename, Scene* scene);
+LevelSet* OpenVDB_file_read(const char* filename, Scene* scene);
 void OpenVDB_use_level_mesh(Scene* scene);
 
 class LevelSet {

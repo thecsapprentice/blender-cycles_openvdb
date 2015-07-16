@@ -877,10 +877,17 @@ class CyclesObjectSettings(bpy.types.PropertyGroup):
                 type=cls,
                 )
 
-        cls.filename = StringProperty(
+        cls.openvdb_filename = StringProperty(
                 name="OpenVDB File",
                 description="The OpenVDB Grid to use for rendering",
                 subtype="FILE_PATH",
+                )
+
+        cls.openvdb_material = IntProperty(
+                name="Material Slot",
+                description="The material slot to use for rendering OpenVDB Levelset",
+                min=0,
+                default=0,
                 )
 
         cls.filetype = EnumProperty(

@@ -651,7 +651,8 @@ class CyclesObject_PT_openvdb(CyclesButtonsPanel, Panel):
     def draw(self, context):
         layout = self.layout
         cob = context.object.cycles
-        layout.prop(cob, "filename")
+        layout.prop(cob, "openvdb_filename")
+        layout.prop(cob, "openvdb_material")
         layout.prop(cob, "filetype")
         if cob.filetype in {'PROPERTY'}:
             layout.prop(cob, "prop_name")
