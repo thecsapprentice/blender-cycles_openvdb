@@ -114,6 +114,7 @@ private:
 	id_map<ObjectKey, Object> object_map;
 	id_map<void*, Mesh> mesh_map;
 	id_map<ObjectKey, Light> light_map;
+	id_map<LevelSetKey, LevelSet> levelset_map;
 	id_map<ParticleSystemKey, ParticleSystem> particle_system_map;
 	set<Mesh*> mesh_synced;
 	set<Mesh*> mesh_motion_synced;

@@ -75,6 +75,10 @@ public:
 		return pthread_join(pthread_id, NULL) == 0;
 	}
 
+	pthread_t id(){
+	  return pthread_id;
+	}
+
 protected:
 	function<void(void)> run_cb;
 	pthread_t pthread_id;

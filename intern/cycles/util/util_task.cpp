@@ -219,6 +219,20 @@ void TaskScheduler::exit()
 	}
 }
 
+vector<pthread_t> TaskScheduler::thread_ids()
+{
+  /* We propably don't need to lock this, but just to be safe */
+  thread_scoped_lock lock(mutex);
+  
+  vector<pthread_t> ids;
+  foreach(thread *t, threads) {
+    ids.push_back( t->id() );
+  }
+  
+  return ids;
+}
+
+
 bool TaskScheduler::thread_wait_pop(Entry& entry)
 {
 	thread_scoped_lock queue_lock(queue_mutex);

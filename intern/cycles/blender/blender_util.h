@@ -613,6 +613,43 @@ struct ParticleSystemKey {
 	}
 };
 
+/* LevelSet Key */
+
+struct LevelSetKey {
+	void *parent;
+	int id[OBJECT_PERSISTENT_ID_SIZE];
+	void *ob;
+        string path;
+
+       LevelSetKey(void *parent_, int id_[OBJECT_PERSISTENT_ID_SIZE], void *ob_, string path_)
+        : parent(parent_), ob(ob_), path(path_)
+	{
+		if(id_)
+			memcpy(id, id_, sizeof(id));
+		else
+			memset(id, 0, sizeof(id));
+	}
+
+	bool operator<(const LevelSetKey& k) const
+	{
+		if(ob < k.ob) {
+			return true;
+		}
+		else if(ob == k.ob) {
+			if(parent < k.parent)
+				return true;
+			else if(parent == k.parent){
+			  if( path < k.path )
+			    return true;
+			  else if( path == k.path )
+			    return memcmp(id, k.id, sizeof(id)) < 0;
+			}
+		}
+
+		return false;
+	}
+};
+
 CCL_NAMESPACE_END
 
 #endif /* __BLENDER_UTIL_H__ */

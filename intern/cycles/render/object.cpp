@@ -36,6 +36,8 @@ CCL_NAMESPACE_BEGIN
 Object::Object()
 {
 	name = "";
+	levelset_path = "";
+	levelset_material_slot = 0;
 	mesh = NULL;
 	tfm = transform_identity();
 	visibility = ~0;

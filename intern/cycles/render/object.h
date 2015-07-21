@@ -40,6 +40,8 @@ public:
 	Transform tfm;
 	BoundBox bounds;
 	ustring name;
+	string levelset_path;
+	int levelset_material_slot;
 	uint random_id;
 	int pass_id;
 	vector<ParamValue> attributes;

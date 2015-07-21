@@ -264,52 +264,7 @@ Object *BlenderSync::sync_object(BL::Object b_parent, int persistent_id[OBJECT_P
 
 	/* test if we need to sync */
 	bool object_updated = false;
-
-	if(object_has_level_set(b_ob)) {
-		char filename[1024];
-		int levelset_material;
-		PointerRNA cyc = RNA_pointer_get(&b_ob.ptr, "cycles");
-		RNA_string_get(&cyc, "openvdb_filename", filename);
-		printf("File %s should be opened, enum is %d!\n", filename, RNA_enum_get(&cyc, "filetype"));
-		levelset_material = RNA_int_get(&cyc, "openvdb_material");
-		LevelSet* levelset = OpenVDB_file_read(filename, scene);
-
-		//while (!scene->level_sets.empty())
-		//{
-		//  LevelSet* levelset_old = scene->level_sets.back();
-		//  delete levelset_old;
-		//  scene->level_sets.pop_back();
-		//}
-		
-		int shader_id = 0;
-		{
-		  BL::Material material_override = render_layer.material_override;
-		  vector<uint> used_shaders;
-		  BL::Object::material_slots_iterator slot;
-		  for(b_ob.material_slots.begin(slot); slot != b_ob.material_slots.end();++slot) {
-		    if(material_override)
-		      find_shader(material_override, used_shaders, scene->default_surface);
-		    else
-		      find_shader(slot->material(), used_shaders, scene->default_surface);
-		  }
-		  
-		  if(used_shaders.size() == 0) {
-		    if(material_override)
-		      find_shader(material_override, used_shaders, scene->default_surface);
-		    else
-		      used_shaders.push_back(scene->default_surface);
-		  }
-
-		  if(levelset_material > used_shaders.size()-1 || levelset_material < 0 )
-		    shader_id = scene->shader_manager->get_shader_id(used_shaders[0], NULL, false);
-		  else
-		    shader_id = scene->shader_manager->get_shader_id(used_shaders[levelset_material], NULL, false);		    
-		}
-
-		levelset->shader = shader_id;
-		scene->level_sets.push_back( levelset );
-		//object_updated = true;
-	}
+	bool levelset_updated = false;
 
 	/* only interested in object that we can create meshes from */
 	if(!object_is_mesh(b_ob))
@@ -351,6 +306,21 @@ Object *BlenderSync::sync_object(BL::Object b_parent, int persistent_id[OBJECT_P
 
 	if(object_map.sync(&object, b_ob, b_parent, key))
 		object_updated = true;
+
+	if(object_has_level_set(b_ob)) {
+		char filename[1024];
+		PointerRNA cyc = RNA_pointer_get(&b_ob.ptr, "cycles");
+		RNA_string_get(&cyc, "openvdb_filename", filename);
+		int levelset_material;
+	        levelset_material = RNA_int_get(&cyc, "openvdb_material");
+		if( string(filename) != object->levelset_path ||
+		    levelset_material != object->levelset_material_slot){
+		  object->levelset_path = string(filename);
+		  object->levelset_material_slot = levelset_material;
+		  levelset_map.set_recalc(b_ob);
+		  object_updated = true; 
+		}		
+	}
 	
 	bool use_holdout = (layer_flag & render_layer.holdout_layer) != 0;
 	
@@ -441,6 +411,45 @@ Object *BlenderSync::sync_object(BL::Object b_parent, int persistent_id[OBJECT_P
 		}
 
 		object->tag_update(scene);
+	}
+
+	LevelSetKey levelset_key(b_parent, persistent_id, b_ob, object->levelset_path);
+	LevelSet* levelset;
+
+	if( object->levelset_path != ""){
+	  if( levelset_map.sync( &levelset, b_ob, b_parent, levelset_key) )
+	    levelset_updated = true;
+	}        
+
+	if(levelset_updated) {        
+	        int shader_id = 0;
+		int levelset_material = object->levelset_material_slot;
+		{
+		  BL::Material material_override = render_layer.material_override;
+		  vector<uint> used_shaders;
+		  BL::Object::material_slots_iterator slot;
+		  for(b_ob.material_slots.begin(slot); slot != b_ob.material_slots.end();++slot) {
+		    if(material_override)
+		      find_shader(material_override, used_shaders, scene->default_surface);
+		    else
+		      find_shader(slot->material(), used_shaders, scene->default_surface);
+		  }
+		  
+		  if(used_shaders.size() == 0) {
+		    if(material_override)
+		      find_shader(material_override, used_shaders, scene->default_surface);
+		    else
+		      used_shaders.push_back(scene->default_surface);
+		  }
+
+		  if(levelset_material > used_shaders.size()-1 || levelset_material < 0 )
+		    shader_id = scene->shader_manager->get_shader_id(used_shaders[0], NULL, true);
+		  else
+		    shader_id = scene->shader_manager->get_shader_id(used_shaders[levelset_material], NULL, true);		    
+		}
+
+		OpenVDB_file_read_to_levelset(object->levelset_path.c_str(), scene, levelset, shader_id+1);
+		levelset->tag_update(scene);
 	}
 
 	return object;
@@ -535,6 +544,7 @@ void BlenderSync::sync_objects(BL::SpaceView3D b_v3d, float motion_time)
 		mesh_map.pre_sync();
 		object_map.pre_sync();
 		particle_system_map.pre_sync();
+		levelset_map.pre_sync();
 		motion_times.clear();
 	}
 	else {
@@ -624,6 +634,8 @@ void BlenderSync::sync_objects(BL::SpaceView3D b_v3d, float motion_time)
 			scene->object_manager->tag_update(scene);
 		if(particle_system_map.post_sync())
 			scene->particle_system_manager->tag_update(scene);
+		if(levelset_map.post_sync())
+                        scene->level_set_manager->tag_update(scene);
 	}
 
 	if(motion)
