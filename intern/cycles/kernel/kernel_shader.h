@@ -60,7 +60,19 @@ ccl_device void shader_setup_from_ray(KernelGlobals *kg, ShaderData *sd,
 
 	/* matrices and time */
 #ifdef __OBJECT_MOTION__
-	shader_setup_object_transforms(kg, sd, ray->time);
+	if( ccl_fetch(sd, type) & PRIMITIVE_LEVEL_SET ) {
+	  /* Do something for levelsets? */
+	  Transform tfm;
+	  tfm.x = make_float4(1.0f, 0.0f, 0.0f, 0.0f);
+	  tfm.y = make_float4(0.0f, 1.0f, 0.0f, 0.0f);
+	  tfm.z = make_float4(0.0f, 0.0f, 1.0f, 0.0f);
+	  tfm.w = make_float4(0.0f, 0.0f, 0.0f, 1.0f);
+	  ccl_fetch(sd, ob_tfm) = tfm;
+	  ccl_fetch(sd, ob_itfm) = tfm;
+	}
+	else {
+	  shader_setup_object_transforms(kg, sd, ray->time);
+	}
 	ccl_fetch(sd, time) = ray->time;
 #endif
 
