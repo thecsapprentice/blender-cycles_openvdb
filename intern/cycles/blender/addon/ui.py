@@ -656,6 +656,9 @@ class CyclesObject_PT_openvdb(CyclesButtonsPanel, Panel):
         layout.prop(cob, "filetype")
         if cob.filetype in {'PROPERTY'}:
             layout.prop(cob, "prop_name")
+        layout.prop(cob, "sequence")
+        if cob.sequence in {'SEQUENCE'}:
+            layout.prop(cob, "sequence_num")
 
 class CyclesObject_PT_motion_blur(CyclesButtonsPanel, Panel):
     bl_label = "Motion Blur"

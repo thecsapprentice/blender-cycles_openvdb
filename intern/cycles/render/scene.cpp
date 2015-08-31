@@ -101,6 +101,7 @@ void Scene::free_memory(bool final)
 	objects.clear();
 	lights.clear();
 	particle_systems.clear();
+	level_sets.clear();
 
 	if(device) {
 		camera->device_free(device, &dscene);

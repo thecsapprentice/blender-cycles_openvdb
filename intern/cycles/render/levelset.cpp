@@ -213,6 +213,7 @@ LevelSet::~LevelSet()
 	{
 		delete iter->second;
 	}
+	isect_map.clear();
 }
 
 void LevelSet::initialize(openvdb::FloatGrid::Ptr& gridPtr, int shader_)
