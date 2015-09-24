@@ -264,12 +264,29 @@ bool LevelSet::intersect(const Ray* ray, Intersection *isect)
 	vdb_ray_t::Vec3Type D(ray->D.x, ray->D.y, ray->D.z);
 	D.normalize();
 
-	vdb_ray_t vdbray(P, D, 1e-5f, ray->t);
+	float max_ray_t;
+	if( ray->t  > 100000.0f ){
+	  //printf( "Ray time exceeded max cap: %f, capping to 100000.\n", ray->t );
+	  max_ray_t = 100000.0f;}
+	else
+	  max_ray_t = ray->t;
+
+	vdb_ray_t vdbray(P, D, 1e-5f, max_ray_t);
 	vdb_ray_t::Vec3Type pos, normal;
 	float t;
 
-	bool intersects = isector->intersectsWS(vdbray, pos, normal, t);
+	bool intersects;
+	try {
+	  intersects = isector->intersectsWS(vdbray, pos, normal, t);
+	}
+	catch( ... ) {
+	  printf( "OpenVDB intersection test threw an exception. Something is wrong, but trying to ignore.\n" ); 
 
+	  //printf( "Ray (eye): %f %f %f\n", vdbray.eye()[0], vdbray.eye()[1], vdbray.eye()[2] );
+	  //printf( "Ray (dir): %f %f %f\n", vdbray.dir()[0], vdbray.dir()[1], vdbray.dir()[2] );
+	  //printf( "Ray (timespan): %f %f\n", vdbray.t0(), vdbray.t1());
+	  return false;
+	}
 
 	if(intersects) {
                 isect->t = t;
