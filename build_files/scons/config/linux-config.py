@@ -47,7 +47,7 @@ BF_SDL_LIB = 'SDL' #BF_SDL #$(shell $(BF_SDL)/bin/sdl-config --libs) -lSDL_mixer
 
 WITH_BF_OPENEXR = True
 WITH_BF_STATICOPENEXR = False
-BF_OPENEXR = '/usr'
+BF_OPENEXR = '/usr/local'
 # when compiling with your own openexr lib you might need to set...
 # BF_OPENEXR_INC = '${BF_OPENEXR}/include/OpenEXR ${BF_OPENEXR}/include'
 
@@ -81,9 +81,9 @@ BF_ZLIB_LIB = 'z'
 
 WITH_BF_INTERNATIONAL = True
 
-WITH_BF_GAMEENGINE = True
-WITH_BF_PLAYER = True
-WITH_BF_OCEANSIM = True
+WITH_BF_GAMEENGINE = False
+WITH_BF_PLAYER = False
+WITH_BF_OCEANSIM = False
 
 WITH_BF_BULLET = True
 BF_BULLET = '#extern/bullet2/src'
@@ -175,7 +175,7 @@ BF_JEMALLOC_LIBPATH = '${BF_JEMALLOC}/lib'
 BF_JEMALLOC_LIB = 'jemalloc'
 BF_JEMALLOC_LIB_STATIC = '${BF_JEMALLOC_LIBPATH}/libjemalloc.a'
 
-WITH_BF_OIIO = False
+WITH_BF_OIIO = True
 WITH_BF_STATICOIIO = False
 BF_OIIO = '/usr'
 BF_OIIO_INC = '${BF_OIIO}/include'
@@ -183,7 +183,7 @@ BF_OIIO_LIB = 'OpenImageIO'
 BF_OIIO_LIB_STATIC = '${BF_OIIO_LIBPATH}/libOpenImageIO.a ${BF_OPENEXR}/lib/libIlmImf.a ${BF_JPEG}/lib/libjpeg.a'
 BF_OIIO_LIBPATH = '${BF_OIIO}/lib'
 
-WITH_BF_OCIO = False
+WITH_BF_OCIO = True
 WITH_BF_STATICOCIO = False
 BF_OCIO = '/usr'
 BF_OCIO_INC = '${BF_OCIO}/include'
@@ -195,7 +195,7 @@ WITH_BF_BOOST = True
 WITH_BF_STATICBOOST = False
 BF_BOOST = '/usr'
 BF_BOOST_INC = '${BF_BOOST}/include'
-BF_BOOST_LIB = 'boost_filesystem boost_regex boost_system boost_thread boost_date_time'
+BF_BOOST_LIB = 'boost_filesystem boost_regex boost_system boost_thread boost_date_time boost_iostreams'
 BF_BOOST_LIB_STATIC = '${BF_BOOST_LIBPATH}/libboost_filesystem.a ${BF_BOOST_LIBPATH}/libboost_date_time.a ' + \
     '${BF_BOOST_LIBPATH}/libboost_regex.a ${BF_BOOST_LIBPATH}/libboost_locale.a ${BF_BOOST_LIBPATH}/libboost_system.a ' + \
     '${BF_BOOST_LIBPATH}/libboost_thread.a'
@@ -203,7 +203,7 @@ BF_BOOST_LIB_INTERNATIONAL = 'boost_locale'
 BF_BOOST_LIBPATH = '${BF_BOOST}/lib'
 
 WITH_BF_OPENVDB = True
-BF_OPENVDB = '/usr'
+BF_OPENVDB = '/usr/local'
 BF_OPENVDB_INC = '${BF_OPENVDB}/include'
 BF_OPENVDB_LIB = 'openvdb tbb'
 BF_OPENVDB_LIB_PATH = '${BF_OPENVDB}/lib'
