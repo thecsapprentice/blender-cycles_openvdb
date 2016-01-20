@@ -1252,7 +1252,18 @@ static void createTransArmatureVerts(TransInfo *t)
 			else {
 				if (ebo->flag & BONE_TIPSEL) {
 					copy_v3_v3(td->iloc, ebo->tail);
-					copy_v3_v3(td->center, (t->around == V3D_LOCAL) ? ebo->head : td->iloc);
+
+					/* Don't allow single selected tips to have a modified center,
+					 * causes problem with snapping (see T45974).
+					 * However, in rotation mode, we want to keep that 'rotate bone around root with
+					 * only its tip selected' behavior (see T46325). */
+					if ((t->around == V3D_LOCAL) && ((t->mode == TFM_ROTATION) || (ebo->flag & BONE_ROOTSEL))) {
+						copy_v3_v3(td->center, ebo->head);
+					}
+					else {
+						copy_v3_v3(td->center, td->iloc);
+					}
+
 					td->loc = ebo->tail;
 					td->flag = TD_SELECTED;
 					if (ebo->flag & BONE_EDITMODE_LOCKED)
@@ -1655,7 +1666,7 @@ static void createTransCurveVerts(TransInfo *t)
 
 			/* TODO - in the case of tilt and radius we can also avoid allocating the initTransDataCurveHandles
 			 * but for now just don't change handle types */
-			if (ELEM(t->mode, TFM_CURVE_SHRINKFATTEN, TFM_TILT) == 0) {
+			if (ELEM(t->mode, TFM_CURVE_SHRINKFATTEN, TFM_TILT, TFM_DUMMY) == 0) {
 				/* sets the handles based on their selection, do this after the data is copied to the TransData */
 				BKE_nurb_handles_test(nu, !hide_handles);
 			}
@@ -2371,7 +2382,7 @@ static void createTransEditVerts(TransInfo *t)
 		if (modifiers_isCorrectableDeformed(t->scene, t->obedit)) {
 			/* check if we can use deform matrices for modifier from the
 			 * start up to stack, they are more accurate than quats */
-			totleft = editbmesh_get_first_deform_matrices(t->scene, t->obedit, em, &defmats, &defcos);
+			totleft = BKE_crazyspace_get_first_deform_matrices_editbmesh(t->scene, t->obedit, em, &defmats, &defcos);
 		}
 
 		/* if we still have more modifiers, also do crazyspace
@@ -3290,7 +3301,7 @@ static void posttrans_mask_clean(Mask *mask)
 /* Called during special_aftertrans_update to make sure selected keyframes replace
  * any other keyframes which may reside on that frame (that is not selected).
  */
-static void posttrans_fcurve_clean(FCurve *fcu, const short use_handle)
+static void posttrans_fcurve_clean(FCurve *fcu, const bool use_handle)
 {
 	float *selcache;    /* cache for frame numbers of selected frames (fcu->totvert*sizeof(float)) */
 	int len, index, i;  /* number of frames in cache, item index */
@@ -3312,7 +3323,7 @@ static void posttrans_fcurve_clean(FCurve *fcu, const short use_handle)
 	for (i = 0; i < fcu->totvert; i++) {
 		BezTriple *bezt = &fcu->bezt[i];
 		
-		if (BEZSELECTED(bezt)) {
+		if (BEZT_ISSEL_ANY(bezt)) {
 			selcache[index] = bezt->vec[1][0];
 			index++;
 			len++;
@@ -3326,7 +3337,7 @@ static void posttrans_fcurve_clean(FCurve *fcu, const short use_handle)
 		for (i = fcu->totvert - 1; i >= 0; i--) {
 			BezTriple *bezt = &fcu->bezt[i];
 			
-			if (BEZSELECTED(bezt) == 0) {
+			if (BEZT_ISSEL_ANY(bezt) == 0) {
 				/* check beztriple should be removed according to cache */
 				for (index = 0; index < len; index++) {
 					if (IS_EQF(bezt->vec[1][0], selcache[index])) {
@@ -3492,7 +3503,7 @@ static TransData *ActionFCurveToTransData(TransData *td, TransData2D **td2dv, FC
 
 	for (i = 0, bezt = fcu->bezt; i < fcu->totvert; i++, bezt++) {
 		/* only add selected keyframes (for now, proportional edit is not enabled) */
-		if (is_prop_edit || (bezt->f2 & SELECT)) { /* note this MUST match count_fcurve_keys(), so can't use BEZSELECTED() macro */
+		if (is_prop_edit || (bezt->f2 & SELECT)) { /* note this MUST match count_fcurve_keys(), so can't use BEZT_ISSEL_ANY() macro */
 			/* only add if on the right 'side' of the current frame */
 			if (FrameOnMouseSide(side, bezt->vec[1][0], cfra)) {
 				TimeToTransData(td, bezt->vec[1], adt, ypos);
@@ -4498,7 +4509,7 @@ void remake_graph_transdata(TransInfo *t, ListBase *anim_data)
 {
 	SpaceIpo *sipo = (SpaceIpo *)t->sa->spacedata.first;
 	bAnimListElem *ale;
-	const short use_handle = !(sipo->flag & SIPO_NOHANDLES);
+	const bool use_handle = (sipo->flag & SIPO_NOHANDLES) == 0;
 	
 	/* sort and reassign verts */
 	for (ale = anim_data->first; ale; ale = ale->next) {
@@ -6151,7 +6162,7 @@ void special_aftertrans_update(bContext *C, TransInfo *t)
 	else if (t->spacetype == SPACE_IPO) {
 		SpaceIpo *sipo = (SpaceIpo *)t->sa->spacedata.first;
 		bAnimContext ac;
-		const short use_handle = !(sipo->flag & SIPO_NOHANDLES);
+		const bool use_handle = (sipo->flag & SIPO_NOHANDLES) == 0;
 		
 		/* initialize relevant anim-context 'context' data */
 		if (ANIM_animdata_get_context(C, &ac) == 0)

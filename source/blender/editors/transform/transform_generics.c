@@ -57,7 +57,7 @@
 #include "BLI_rand.h"
 #include "BLI_utildefines.h"
 
-#include "BLF_translation.h"
+#include "BLT_translation.h"
 
 #include "RNA_access.h"
 
@@ -304,7 +304,7 @@ static bool fcu_test_selected(FCurve *fcu)
 		return 0;
 
 	for (i = 0; i < fcu->totvert; i++, bezt++) {
-		if (BEZSELECTED(bezt)) return 1;
+		if (BEZT_ISSEL_ANY(bezt)) return 1;
 	}
 
 	return 0;
@@ -709,12 +709,6 @@ static void recalcData_objects(TransInfo *t)
 {
 	Base *base = t->scene->basact;
 
-	if (t->state != TRANS_CANCEL) {
-		if (ELEM(t->tsnap.mode, SCE_SNAP_MODE_INCREMENT, SCE_SNAP_MODE_GRID) && t->tsnap.snap_spatial_grid) {
-			applyGridAbsolute(t);
-		}
-	}
-
 	if (t->obedit) {
 		if (ELEM(t->obedit->type, OB_CURVE, OB_SURF)) {
 			Curve *cu = t->obedit->data;
@@ -764,7 +758,14 @@ static void recalcData_objects(TransInfo *t)
 			}
 			if ((t->options & CTX_NO_MIRROR) == 0 && (t->flag & T_MIRROR))
 				editbmesh_apply_to_mirror(t);
-				
+
+			if (t->mode == TFM_EDGE_SLIDE) {
+				projectEdgeSlideData(t, false);
+			}
+			else if (t->mode == TFM_VERT_SLIDE) {
+				projectVertSlideData(t, false);
+			}
+
 			DAG_id_tag_update(t->obedit->data, 0);  /* sets recalc flags */
 			
 			EDBM_mesh_normals_update(em);
@@ -1206,18 +1207,7 @@ void initTransInfo(bContext *C, TransInfo *t, wmOperator *op, const wmEvent *eve
 			t->around = V3D_CURSOR;
 		}
 
-		if (op && ((prop = RNA_struct_find_property(op->ptr, "constraint_orientation")) &&
-		           RNA_property_is_set(op->ptr, prop)))
-		{
-			t->current_orientation = RNA_property_enum_get(op->ptr, prop);
-
-			if (t->current_orientation >= V3D_MANIP_CUSTOM + BIF_countTransformOrientation(C)) {
-				t->current_orientation = V3D_MANIP_GLOBAL;
-			}
-		}
-		else {
-			t->current_orientation = v3d->twmode;
-		}
+		t->current_orientation = v3d->twmode;
 
 		/* exceptional case */
 		if (t->around == V3D_LOCAL) {
@@ -1303,6 +1293,16 @@ void initTransInfo(bContext *C, TransInfo *t, wmOperator *op, const wmEvent *eve
 			t->view = NULL;
 		}
 		t->around = V3D_CENTER;
+	}
+
+	if (op && ((prop = RNA_struct_find_property(op->ptr, "constraint_orientation")) &&
+	           RNA_property_is_set(op->ptr, prop)))
+	{
+		t->current_orientation = RNA_property_enum_get(op->ptr, prop);
+
+		if (t->current_orientation >= V3D_MANIP_CUSTOM + BIF_countTransformOrientation(C)) {
+			t->current_orientation = V3D_MANIP_GLOBAL;
+		}
 	}
 	
 	if (op && ((prop = RNA_struct_find_property(op->ptr, "release_confirm")) &&
@@ -1831,7 +1831,7 @@ void calculateCenter(TransInfo *t)
 		/* zfac is only used convertViewVec only in cases operator was invoked in RGN_TYPE_WINDOW
 		 * and never used in other cases.
 		 *
-		 * We need special case here as well, since ED_view3d_calc_zfac will crahs when called
+		 * We need special case here as well, since ED_view3d_calc_zfac will crash when called
 		 * for a region different from RGN_TYPE_WINDOW.
 		 */
 		if (t->ar->regiontype == RGN_TYPE_WINDOW) {
@@ -1962,3 +1962,110 @@ void calculatePropRatio(TransInfo *t)
 		}
 	}
 }
+
+/**
+ * Rotate an element, low level code, ignore protected channels.
+ * (use for objects or pose-bones)
+ * Similar to #ElementRotation.
+ */
+void transform_data_ext_rotate(TransData *td, float mat[3][3], bool use_drot)
+{
+	float totmat[3][3];
+	float smat[3][3];
+	float fmat[3][3];
+	float obmat[3][3];
+
+	float dmat[3][3];  /* delta rotation */
+	float dmat_inv[3][3];
+
+	mul_m3_m3m3(totmat, mat, td->mtx);
+	mul_m3_m3m3(smat, td->smtx, mat);
+
+	/* logic from BKE_object_rot_to_mat3 */
+	if (use_drot) {
+		if (td->ext->rotOrder > 0) {
+			eulO_to_mat3(dmat, td->ext->drot, td->ext->rotOrder);
+		}
+		else if (td->ext->rotOrder == ROT_MODE_AXISANGLE) {
+#if 0
+			axis_angle_to_mat3(dmat, td->ext->drotAxis, td->ext->drotAngle);
+#else
+			unit_m3(dmat);
+#endif
+		}
+		else {
+			float tquat[4];
+			normalize_qt_qt(tquat, td->ext->dquat);
+			quat_to_mat3(dmat, tquat);
+		}
+
+		invert_m3_m3(dmat_inv, dmat);
+	}
+
+
+	if (td->ext->rotOrder == ROT_MODE_QUAT) {
+		float quat[4];
+
+		/* calculate the total rotatation */
+		quat_to_mat3(obmat, td->ext->iquat);
+		if (use_drot) {
+			mul_m3_m3m3(obmat, dmat, obmat);
+		}
+
+		/* mat = transform, obmat = object rotation */
+		mul_m3_m3m3(fmat, smat, obmat);
+
+		if (use_drot) {
+			mul_m3_m3m3(fmat, dmat_inv, fmat);
+		}
+
+		mat3_to_quat(quat, fmat);
+
+		/* apply */
+		copy_qt_qt(td->ext->quat, quat);
+	}
+	else if (td->ext->rotOrder == ROT_MODE_AXISANGLE) {
+		float axis[3], angle;
+
+		/* calculate the total rotatation */
+		axis_angle_to_mat3(obmat, td->ext->irotAxis, td->ext->irotAngle);
+		if (use_drot) {
+			mul_m3_m3m3(obmat, dmat, obmat);
+		}
+
+		/* mat = transform, obmat = object rotation */
+		mul_m3_m3m3(fmat, smat, obmat);
+
+		if (use_drot) {
+			mul_m3_m3m3(fmat, dmat_inv, fmat);
+		}
+
+		mat3_to_axis_angle(axis, &angle, fmat);
+
+		/* apply */
+		copy_v3_v3(td->ext->rotAxis, axis);
+		*td->ext->rotAngle = angle;
+	}
+	else {
+		float eul[3];
+
+		/* calculate the total rotatation */
+		eulO_to_mat3(obmat, td->ext->irot, td->ext->rotOrder);
+		if (use_drot) {
+			mul_m3_m3m3(obmat, dmat, obmat);
+		}
+
+		/* mat = transform, obmat = object rotation */
+		mul_m3_m3m3(fmat, smat, obmat);
+
+		if (use_drot) {
+			mul_m3_m3m3(fmat, dmat_inv, fmat);
+		}
+
+		mat3_to_compatible_eulO(eul, td->ext->rot, td->ext->rotOrder, fmat);
+
+		/* apply */
+		copy_v3_v3(td->ext->rot, eul);
+	}
+}
+
