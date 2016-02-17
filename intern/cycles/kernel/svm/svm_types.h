@@ -46,7 +46,7 @@ CCL_NAMESPACE_BEGIN
 #define NODE_FEATURE_HAIR       (1 << 1)
 #define NODE_FEATURE_BUMP       (1 << 2)
 /* TODO(sergey): Consider using something like ((uint)(-1)).
- * Need to ceck carefully operand types around usage of this
+ * Need to check carefully operand types around usage of this
  * define first.
  */
 #define NODE_FEATURE_ALL        (NODE_FEATURE_VOLUME|NODE_FEATURE_HAIR|NODE_FEATURE_BUMP)
@@ -127,6 +127,7 @@ typedef enum NodeType {
 	NODE_HAIR_INFO,
 	NODE_UVMAP,
 	NODE_OPENVDB,
+	NODE_TEX_VOXEL,
 } NodeType;
 
 typedef enum NodeAttributeType {
@@ -354,6 +355,11 @@ typedef enum NodeOpenVDBType {
 	NODE_VDB_FLOAT  = 0,
 	NODE_VDB_FLOAT3 = 1,
 } NodeOpenVDBType;
+
+typedef enum NodeTexVoxelSpace {
+	NODE_TEX_VOXEL_SPACE_OBJECT = 0,
+	NODE_TEX_VOXEL_SPACE_WORLD  = 1,
+} NodeTexVoxelSpace;
 
 typedef enum ShaderType {
 	SHADER_TYPE_SURFACE,

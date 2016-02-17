@@ -48,7 +48,7 @@ macro(list_insert_before
 	unset(_index)
 endmacro()
 
-function (list_assert_duplicates
+function(list_assert_duplicates
 	list_id
 	)
 	
@@ -346,6 +346,9 @@ function(setup_liblinks
 	if(WITH_BULLET AND WITH_SYSTEM_BULLET)
 		target_link_libraries(${target} ${BULLET_LIBRARIES})
 	endif()
+	if(WITH_AUDASPACE AND WITH_SYSTEM_AUDASPACE)
+		target_link_libraries(${target} ${AUDASPACE_C_LIBRARIES} ${AUDASPACE_PY_LIBRARIES})
+	endif()
 	if(WITH_OPENAL)
 		target_link_libraries(${target} ${OPENAL_LIBRARY})
 	endif()
@@ -375,6 +378,16 @@ function(setup_liblinks
 	endif()
 	if(WITH_OPENVDB)
 		target_link_libraries(${target} ${OPENVDB_LIBRARIES})
+        endif()
+	if(WITH_OPENSUBDIV)
+		if(WIN32 AND NOT UNIX)
+			file_list_suffix(OPENSUBDIV_LIBRARIES_DEBUG "${OPENSUBDIV_LIBRARIES}" "_d")
+			target_link_libraries_debug(${target} "${OPENSUBDIV_LIBRARIES_DEBUG}")
+			target_link_libraries_optimized(${target} "${OPENSUBDIV_LIBRARIES}")
+			unset(OPENSUBDIV_LIBRARIES_DEBUG)
+		else()
+			target_link_libraries(${target} ${OPENSUBDIV_LIBRARIES})
+		endif()
 	endif()
 	if(WITH_CYCLES_OSL)
 		target_link_libraries(${target} ${OSL_LIBRARIES})
@@ -584,6 +597,7 @@ function(SETUP_BLENDER_SORTED_LIBS)
 		ge_videotex
 		bf_dna
 		bf_blenfont
+		bf_blentranslation
 		bf_intern_audaspace
 		bf_intern_mikktspace
 		bf_intern_dualcon
@@ -601,6 +615,7 @@ function(SETUP_BLENDER_SORTED_LIBS)
 		extern_libmv
 		extern_glog
 		extern_sdlew
+		extern_eigen3
 
 		bf_intern_glew_mx
 	)
@@ -681,6 +696,10 @@ function(SETUP_BLENDER_SORTED_LIBS)
 
 	if(WITH_OPENVDB)
 		list(APPEND BLENDER_SORTED_LIBS bf_intern_openvdb)
+        endif()
+
+	if(WITH_OPENSUBDIV)
+		list(APPEND BLENDER_SORTED_LIBS bf_intern_opensubdiv)
 	endif()
 
 	foreach(SORTLIB ${BLENDER_SORTED_LIBS})
@@ -1273,7 +1292,7 @@ function(data_to_c
 	add_custom_command(
 		OUTPUT ${file_to}
 		COMMAND ${CMAKE_COMMAND} -E make_directory ${_file_to_path}
-		COMMAND ${CMAKE_BINARY_DIR}/bin/${CMAKE_CFG_INTDIR}/datatoc ${file_from} ${file_to}
+		COMMAND "$<TARGET_FILE:datatoc>" ${file_from} ${file_to}
 		DEPENDS ${file_from} datatoc)
 
 	set_source_files_properties(${file_to} PROPERTIES GENERATED TRUE)
@@ -1298,7 +1317,7 @@ function(data_to_c_simple
 	add_custom_command(
 		OUTPUT  ${_file_to}
 		COMMAND ${CMAKE_COMMAND} -E make_directory ${_file_to_path}
-		COMMAND ${CMAKE_BINARY_DIR}/bin/${CMAKE_CFG_INTDIR}/datatoc ${_file_from} ${_file_to}
+		COMMAND "$<TARGET_FILE:datatoc>" ${_file_from} ${_file_to}
 		DEPENDS ${_file_from} datatoc)
 
 	set_source_files_properties(${_file_to} PROPERTIES GENERATED TRUE)
@@ -1331,8 +1350,8 @@ function(data_to_c_simple_icons
 		OUTPUT  ${_file_from} ${_file_to}
 		COMMAND ${CMAKE_COMMAND} -E make_directory ${_file_to_path}
 		#COMMAND python3 ${CMAKE_SOURCE_DIR}/source/blender/datatoc/datatoc_icon.py ${_path_from_abs} ${_file_from}
-		COMMAND ${CMAKE_BINARY_DIR}/bin/${CMAKE_CFG_INTDIR}/datatoc_icon ${_path_from_abs} ${_file_from}
-		COMMAND ${CMAKE_BINARY_DIR}/bin/${CMAKE_CFG_INTDIR}/datatoc ${_file_from} ${_file_to}
+		COMMAND "$<TARGET_FILE:datatoc_icon>" ${_path_from_abs} ${_file_from}
+		COMMAND "$<TARGET_FILE:datatoc>" ${_file_from} ${_file_to}
 		DEPENDS
 			${_icon_files}
 			datatoc_icon
@@ -1401,7 +1420,7 @@ function(msgfmt_simple
 	add_custom_command(
 		OUTPUT  ${_file_to}
 		COMMAND ${CMAKE_COMMAND} -E make_directory ${_file_to_path}
-		COMMAND ${CMAKE_BINARY_DIR}/bin/${CMAKE_CFG_INTDIR}/msgfmt ${_file_from} ${_file_to}
+		COMMAND "$<TARGET_FILE:msgfmt>" ${_file_from} ${_file_to}
 		DEPENDS msgfmt ${_file_from})
 
 	set_source_files_properties(${_file_to} PROPERTIES GENERATED TRUE)
