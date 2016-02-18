@@ -101,7 +101,7 @@ LevelSet* OpenVDB_file_read(const char* filename, Scene* scene)
 	//  return new LevelSet(level_set_ptr, 0);
 }
 
-void OpenVDB_file_read_to_levelset(const char* filename, Scene* scene, LevelSet* levelset, int shader )
+void OpenVDB_file_read_to_levelset(const char* filename, Scene* scene, LevelSet* levelset, int shader, const Transform* tfm  )
 {
 	using namespace openvdb;
 	OpenVDB_initialize();
@@ -122,8 +122,18 @@ void OpenVDB_file_read_to_levelset(const char* filename, Scene* scene, LevelSet*
 	    if(grid->getGridClass() != GRID_LEVEL_SET)
 	      continue;
 	    
-	    if (grid->isType<FloatGrid>())
+	    if (grid->isType<FloatGrid>()){
 	      level_set_ptr = gridPtrCast<openvdb::FloatGrid>(grid);
+
+          // Apply the given transform if it is uniform scaling.
+          openvdb::math::Transform::Ptr targetXform = openvdb::math::Transform::createLinearTransform( openvdb::math::Mat4<double>(&(tfm->x.x)) );
+          targetXform->print();
+          if( targetXform->hasUniformScale() )
+              level_set_ptr->setTransform( targetXform );
+          else{
+              printf("Skipping user transform, produces non-uniform voxels.");             
+          }
+        }
 	    else
 	      printf("No FloatGrid, ignoring!\n");
 	  }

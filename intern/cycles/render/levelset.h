@@ -24,6 +24,7 @@
 #include "kernel_types.h"
 #include "util_map.h"
 #include "util_thread.h"
+#include "util_transform.h"
 
 #include <functional>
 
@@ -296,7 +297,7 @@ class LevelSet;
 void OpenVDB_initialize();
 void OpenVDB_file_info(const char* filename);
 LevelSet* OpenVDB_file_read(const char* filename, Scene* scene);
-void OpenVDB_file_read_to_levelset(const char* filename, Scene* scene, LevelSet* levelset, int shader );
+void OpenVDB_file_read_to_levelset(const char* filename, Scene* scene, LevelSet* levelset, int shader, const Transform* tfm );
 void OpenVDB_use_level_mesh(Scene* scene);
 
 #if defined(CYCLES_TR1_UNORDERED_MAP) || defined(CYCLES_STD_UNORDERED_MAP) || defined(CYCLES_STD_UNORDERED_MAP_IN_TR1_NAMESPACE)

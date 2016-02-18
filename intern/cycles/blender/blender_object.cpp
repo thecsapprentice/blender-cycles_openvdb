@@ -380,7 +380,8 @@ Object *BlenderSync::sync_object(BL::Object b_parent,
 		  abs_path = ss.str();
 		}
 		if( abs_path != object->levelset_path ||
-		    levelset_material != object->levelset_material_slot){
+		    levelset_material != object->levelset_material_slot ||
+            tfm != object->tfm ){
 		  object->levelset_path = abs_path;
 		  object->levelset_material_slot = levelset_material;
 		  levelset_map.set_recalc(b_ob);
@@ -514,7 +515,7 @@ Object *BlenderSync::sync_object(BL::Object b_parent,
 		    shader_id = scene->shader_manager->get_shader_id(used_shaders[levelset_material], NULL, true);		    
 		}
 
-		OpenVDB_file_read_to_levelset(object->levelset_path.c_str(), scene, levelset, shader_id+1);
+		OpenVDB_file_read_to_levelset(object->levelset_path.c_str(), scene, levelset, shader_id+1, &tfm);
 		levelset->tag_update(scene);
 	}
 
