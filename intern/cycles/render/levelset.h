@@ -343,14 +343,15 @@ public:
 	                                                  LinearSearchImpl,
 	                                                  openvdb::FloatTree::RootNodeType::ChildNodeType::LEVEL,
 	                                                  vdb_ray_t> isect_t;
+       typedef boost::shared_ptr<isect_t> isect_t_ptr;
 
    /* used to ensure each thread gets its own intersector */
    /* if we really have true unordered_maps, use more appropriate hash and equality operators */
 #if defined(CYCLES_TR1_UNORDERED_MAP) || defined(CYCLES_STD_UNORDERED_MAP) || defined(CYCLES_STD_UNORDERED_MAP_IN_TR1_NAMESPACE)
-           typedef unordered_map<pthread_t, isect_t *,
+           typedef unordered_map<pthread_t, isect_t_ptr,
 				 pthread_hash, pthread_equal_to > isect_map_t;
 #else
-           typedef unordered_map<pthread_t, isect_t * > isect_map_t;
+           typedef unordered_map<pthread_t, isect_t_ptr > isect_map_t;
 #endif
 	   isect_map_t isect_map;
 };

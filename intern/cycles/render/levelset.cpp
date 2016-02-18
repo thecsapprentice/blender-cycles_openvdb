@@ -162,21 +162,23 @@ LevelSet::LevelSet(openvdb::FloatGrid::Ptr gridPtr, int shader_)
     : grid(gridPtr), shader(shader_)
 {
   //printf( "LevelSet Explicit Constructor\n" ); 
-
+    if( !grid.use_count() )
+        return;
+    
 	/* grid->print(); */
 	// printf( "Initializing thread accessor mapping from thread %u.\n", pthread_self() ); 
 	vector<pthread_t> ids = TaskScheduler::thread_ids();
 	pthread_t my_thread = pthread_self();
 	foreach( pthread_t id, ids) {
 	  // printf( "New RayIntersector required for thread %u. Creating...\n", id);	  
-	  isect_t* isector = new isect_t(*grid);
-	  pair<pthread_t, isect_t *> isect(id, isector);		
-	  isect_map.insert(isect);
+        isect_t_ptr isector(new isect_t(*grid));
+        pair<pthread_t, isect_t_ptr> isect(id, isector);		
+        isect_map.insert(isect);
 	}
 	/* Always add this thread, as it also seems to be used for rendering */
 	if( isect_map.find(my_thread) == isect_map.end() ){
-	  isect_t* isector = new isect_t(*grid);
-	  pair<pthread_t, isect_t *> isect(my_thread, isector);		
+        isect_t_ptr isector(new isect_t(*grid));
+	  pair<pthread_t, isect_t_ptr> isect(my_thread, isector);		
 	  isect_map.insert(isect);
 	}
 	  
@@ -186,48 +188,57 @@ LevelSet::LevelSet( const LevelSet& levelset )
   : grid( levelset.grid ), shader( levelset.shader )
 {
   //printf( "LevelSet Copy Constructor\n" ); 
-
+    if( !grid.use_count() )
+        return;
+    
   // printf( "Initializing thread accessor mapping from thread %u.\n", pthread_self() ); 
   vector<pthread_t> ids = TaskScheduler::thread_ids();
   pthread_t my_thread = pthread_self();
   foreach( pthread_t id, ids) {
     // printf( "New RayIntersector required for thread %u. Creating...\n", id);	  
-    isect_t* isector = new isect_t(*grid);
-    pair<pthread_t, isect_t *> isect(id, isector);		
-    isect_map.insert(isect);
+      isect_t_ptr isector(new isect_t(*grid));
+      pair<pthread_t, isect_t_ptr> isect(id, isector);		
+      isect_map.insert(isect);
   }
   /* Always add this thread, as it also seems to be used for rendering */
   if( isect_map.find(my_thread) == isect_map.end() ){
-    isect_t* isector = new isect_t(*grid);
-    pair<pthread_t, isect_t *> isect(my_thread, isector);		
-    isect_map.insert(isect);
+      isect_t_ptr isector(new isect_t(*grid));
+      pair<pthread_t, isect_t_ptr> isect(my_thread, isector);		
+      isect_map.insert(isect);
   }
   
 }
 
 LevelSet::~LevelSet()
 {
-	for(isect_map_t::iterator iter = isect_map.begin();
-	    iter != isect_map.end();
-	    ++iter)
-	{
-		delete iter->second;
-	}
+	//for(isect_map_t::iterator iter = isect_map.begin();
+	//    iter != isect_map.end();
+	//    ++iter)
+	//{
+	//	delete iter->second;
+	//}
 	isect_map.clear();
 }
 
 void LevelSet::initialize(openvdb::FloatGrid::Ptr& gridPtr, int shader_)
 {
-  // printf( "LevelSet Post-Construction Initializer\n" ); 
+  // printf( "LevelSet Post-Construction Initializer\n" );
+    if( !gridPtr.use_count() )
+        return;
+        
   grid.swap(gridPtr);
   shader = shader_;
 
-  for(isect_map_t::iterator iter = isect_map.begin();
-      iter != isect_map.end();
-      ++iter)
-    {
-      delete iter->second;
-    }
+  //int counter=0;
+  //for(isect_map_t::iterator iter = isect_map.begin();
+  //    iter != isect_map.end();
+  //    ++iter)
+  //  {
+  //      printf( "Deleting intersector: %d\n", counter ); 
+  //     delete iter->second;
+  //      counter++;
+  //  }
+  isect_map.clear();
 
   //printf( "Initializing thread accessor mapping from thread %u.\n", pthread_self() ); 
 
@@ -235,15 +246,15 @@ void LevelSet::initialize(openvdb::FloatGrid::Ptr& gridPtr, int shader_)
   pthread_t my_thread = pthread_self();
   foreach( pthread_t id, ids) {
     // printf( "New RayIntersector required for thread %u. Creating...\n", id);	  
-    isect_t* isector = new isect_t(*grid);
-    pair<pthread_t, isect_t *> isect(id, isector);		
-    isect_map.insert(isect);
+      isect_t_ptr isector(new isect_t(*grid));
+      pair<pthread_t, isect_t_ptr> isect(id, isector);		
+      isect_map.insert(isect);
   }
   /* Always add this thread, as it also seems to be used for rendering */
   if( isect_map.find(my_thread) == isect_map.end() ){
-    isect_t* isector = new isect_t(*grid);
-    pair<pthread_t, isect_t *> isect(my_thread, isector);		
-    isect_map.insert(isect);
+      isect_t_ptr isector(new isect_t(*grid));
+      pair<pthread_t, isect_t_ptr> isect(my_thread, isector);		
+      isect_map.insert(isect);
   }
 }
 
@@ -256,8 +267,9 @@ bool LevelSet::intersect(const Ray* ray, Intersection *isect)
 {
 	pthread_t thread = pthread_self();
 	isect_map_t::iterator iter = isect_map.find(thread);
-	isect_t *isector;
-	assert( iter != isect_map.end() );
+	isect_t_ptr isector;
+	if(iter == isect_map.end() )
+        return false;
 	isector = iter->second;
 
 	vdb_ray_t::Vec3Type P(ray->P.x, ray->P.y, ray->P.z);
