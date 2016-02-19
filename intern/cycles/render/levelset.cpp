@@ -126,7 +126,11 @@ void OpenVDB_file_read_to_levelset(const char* filename, Scene* scene, LevelSet*
 	      level_set_ptr = gridPtrCast<openvdb::FloatGrid>(grid);
 
           // Apply the given transform if it is uniform scaling.
-          openvdb::math::Transform::Ptr targetXform = openvdb::math::Transform::createLinearTransform( openvdb::math::Mat4<double>(&(tfm->x.x)) );
+          openvdb::math::Mat4<double> mat_tfm (tfm->x.x, tfm->y.x, tfm->z.x, tfm->w.x,
+                                               tfm->x.y, tfm->y.y, tfm->z.y, tfm->w.y,
+                                               tfm->x.z, tfm->y.z, tfm->z.z, tfm->w.z,
+                                               tfm->x.w, tfm->y.w, tfm->z.w, tfm->w.w );
+          openvdb::math::Transform::Ptr targetXform = openvdb::math::Transform::createLinearTransform(mat_tfm);
           targetXform->print();
           if( targetXform->hasUniformScale() )
               level_set_ptr->setTransform( targetXform );
