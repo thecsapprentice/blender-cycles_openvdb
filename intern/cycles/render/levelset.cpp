@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+#include <openvdb/tools/GridTransformer.h>
 #include "levelset.h"
 #include "scene.h"
 #include "util_progress.h"
@@ -106,6 +107,7 @@ void OpenVDB_file_read_to_levelset(const char* filename, Scene* scene, LevelSet*
 	using namespace openvdb;
 	OpenVDB_initialize();
 	openvdb::FloatGrid::Ptr level_set_ptr;
+    openvdb::FloatGrid::Ptr transformed_level_set_ptr;
 	try {
 	  io::File file(filename);
 	  file.open();
@@ -126,17 +128,22 @@ void OpenVDB_file_read_to_levelset(const char* filename, Scene* scene, LevelSet*
 	      level_set_ptr = gridPtrCast<openvdb::FloatGrid>(grid);
 
           // Apply the given transform if it is uniform scaling.
-          openvdb::math::Mat4<double> mat_tfm (tfm->x.x, tfm->y.x, tfm->z.x, tfm->w.x,
-                                               tfm->x.y, tfm->y.y, tfm->z.y, tfm->w.y,
-                                               tfm->x.z, tfm->y.z, tfm->z.z, tfm->w.z,
-                                               tfm->x.w, tfm->y.w, tfm->z.w, tfm->w.w );
+          Transform cs_tfm = transform_clear_scale( *tfm );
+          openvdb::math::Vec3d voxel_size;
+          voxel_size.x() = len( transform_get_column( tfm, 0 ) );
+          voxel_size.y() = len( transform_get_column( tfm, 1 ) );
+          voxel_size.z() = len( transform_get_column( tfm, 2 ) );
+          openvdb::math::Mat4<double> mat_tfm (cs_tfm.x.x, cs_tfm.y.x, cs_tfm.z.x, cs_tfm.w.x,
+                                               cs_tfm.x.y, cs_tfm.y.y, cs_tfm.z.y, cs_tfm.w.y,
+                                               cs_tfm.x.z, cs_tfm.y.z, cs_tfm.z.z, cs_tfm.w.z,
+                                               cs_tfm.x.w, cs_tfm.y.w, cs_tfm.z.w, cs_tfm.w.w );
           openvdb::math::Transform::Ptr targetXform = openvdb::math::Transform::createLinearTransform(mat_tfm);
           targetXform->print();
-          if( targetXform->hasUniformScale() )
-              level_set_ptr->setTransform( targetXform );
-          else{
-              printf("Skipping user transform, produces non-uniform voxels.");             
-          }
+          double min_voxel_dimension = openvdb::math::Max( voxel_size.x(), voxel_size.y(), voxel_size.z() );
+          transformed_level_set_ptr = openvdb::createLevelSet<openvdb::FloatGrid>(min_voxel_dimension);
+          openvdb::tools::GridTransformer transformer(mat_tfm);
+          transformer.transformGrid<openvdb::tools::QuadraticSampler>(*level_set_ptr, *transformed_level_set_ptr);
+          transformed_level_set_ptr->print();
         }
 	    else
 	      printf("No FloatGrid, ignoring!\n");
@@ -150,7 +157,7 @@ void OpenVDB_file_read_to_levelset(const char* filename, Scene* scene, LevelSet*
 
 	
 	
-	levelset->initialize( level_set_ptr, shader );
+	levelset->initialize( transformed_level_set_ptr, shader );
 }
 
 
