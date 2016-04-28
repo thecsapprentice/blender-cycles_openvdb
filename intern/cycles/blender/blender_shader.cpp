@@ -744,7 +744,7 @@ static ShaderNode *add_node(Scene *scene,
 	else if(b_node.is_a(&RNA_ShaderNodeOpenVDB)) {
 		BL::ShaderNodeOpenVDB b_vdb_node(b_node);
 		OpenVDBNode *vdb_node = new OpenVDBNode();
-		vdb_node->filename = b_vdb_node.filename();
+		vdb_node->filename = blender_absolute_path(b_data, b_ntree, b_vdb_node.filename());
 		vdb_node->sampling = b_vdb_node.sampling();
 
 		/* TODO(kevin) */
@@ -755,8 +755,8 @@ static ShaderNode *add_node(Scene *scene,
 			ss << b_scene.frame_current();
 			string frame = ss.str();
 			frame.insert(frame.begin(), 4 - frame.size(), '0');
-
-			vdb_node->filename = ustring::format("%s%s.vdb", basename, frame);
+            string seq_filename = ustring::format("%s%s.vdb", basename, frame).string();
+			vdb_node->filename = blender_absolute_path(b_data, b_ntree, seq_filename);            
 		}
 
 		BL::Node::outputs_iterator b_output;
