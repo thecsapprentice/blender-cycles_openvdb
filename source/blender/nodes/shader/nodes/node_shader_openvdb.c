@@ -98,7 +98,9 @@ static void node_openvdb_create_sockets(void *userdata, bNodeTree *ntree, bNode 
 
 	filename = &vdb->filename[0];
 
+    bool need_rel_conv=false;
 	if (BLI_path_is_rel(filename)) {
+        need_rel_conv=true;
 		BLI_path_abs(filename, bmain->name);
 	}
 
@@ -118,6 +120,9 @@ static void node_openvdb_create_sockets(void *userdata, bNodeTree *ntree, bNode 
 				break;
 		}
 	}
+    
+    if(need_rel_conv)
+        BLI_path_rel(filename, bmain->name);
 }
 
 void ntreeUpdateOpenVDBNode(Main *bmain, bNodeTree *ntree, bNode *node)

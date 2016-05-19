@@ -4,6 +4,9 @@
 #include "util_types.h"
 
 #include "kernel_types.h"
+#include "levelset.h"
+#include "util_task.h"
+#include "util_foreach.h"
 
 CCL_NAMESPACE_BEGIN
 
@@ -70,9 +73,16 @@ class vdb_float_volume : public float_volume {
 	typedef isector_t::RayType vdb_ray_t;
 
 	/* mainly used to ensure thread safety for the accessors */
+    /* These hash routines are pulled from the ones I wrote for levelset.h (nathan) */
+#if defined(CYCLES_TR1_UNORDERED_MAP) || defined(CYCLES_STD_UNORDERED_MAP) || defined(CYCLES_STD_UNORDERED_MAP_IN_TR1_NAMESPACE)
+	typedef unordered_map<pthread_t, isector_t *, pthread_hash, pthread_equal_to> isect_map;
+	typedef unordered_map<pthread_t, point_sampler_t *, pthread_hash, pthread_equal_to> point_map;
+	typedef unordered_map<pthread_t, box_sampler_t *, pthread_hash, pthread_equal_to> box_map;
+#else
 	typedef unordered_map<pthread_t, isector_t *> isect_map;
 	typedef unordered_map<pthread_t, point_sampler_t *> point_map;
 	typedef unordered_map<pthread_t, box_sampler_t *> box_map;
+#endif
 	isect_map isectors;
 	point_map point_samplers;
 	box_map box_samplers;
@@ -91,12 +101,52 @@ public:
 	vdb_float_volume(openvdb::FloatGrid::Ptr grid)
 	    : transfrom(&grid->transform())
 	{
+
+        /* We need to initialize the maps FIRST! otherwise we risk having race conditions later on (nathan) */
+        /* Again, this is similar to the levelset code. */
+        vector<pthread_t> ids = TaskScheduler::thread_ids();
+        pthread_t my_thread = pthread_self();
+        foreach( pthread_t id, ids) {
+            // printf( "New RayIntersector required for thread %u. Creating...\n", id);	  
+            isector_t* isector = new isector_t(*grid);
+            pair<pthread_t, isector_t *> isect(id, isector);		
+            isectors.insert(isect);
+
+            openvdb::FloatGrid::ConstAccessor *point_acc = new openvdb::FloatGrid::ConstAccessor(grid->getConstAccessor());
+            point_sampler_t* point_sampler = new point_sampler_t(*point_acc, *transfrom);
+            pair<pthread_t, point_sampler_t *> point_sampl(id, point_sampler);
+            point_samplers.insert(point_sampl);
+
+            openvdb::FloatGrid::ConstAccessor *box_acc = new openvdb::FloatGrid::ConstAccessor(grid->getConstAccessor());
+            box_sampler_t* box_sampler = new box_sampler_t(*box_acc, *transfrom);
+            pair<pthread_t, box_sampler_t *> box_sampl(id, box_sampler);
+            box_samplers.insert(box_sampl);
+
+        }
+
+        /* Always add this thread, as it also seems to be used for rendering */
+        if( isectors.find(my_thread) == isectors.end() ){
+            isector_t* isector = new isector_t(*grid);
+            pair<pthread_t, isector_t *> isect(my_thread, isector);		
+            isectors.insert(isect);
+
+            openvdb::FloatGrid::ConstAccessor *point_acc = new openvdb::FloatGrid::ConstAccessor(grid->getConstAccessor());
+            point_sampler_t* point_sampler = new point_sampler_t(*point_acc, *transfrom);
+            pair<pthread_t, point_sampler_t *> point_sampl(my_thread, point_sampler);
+            point_samplers.insert(point_sampl);
+
+            openvdb::FloatGrid::ConstAccessor *box_acc = new openvdb::FloatGrid::ConstAccessor(grid->getConstAccessor());
+            box_sampler_t* box_sampler = new box_sampler_t(*box_acc, *transfrom);
+            pair<pthread_t, box_sampler_t *> box_sampl(my_thread, box_sampler);
+            box_samplers.insert(box_sampl);
+        }
+        
 		accessor = new openvdb::FloatGrid::ConstAccessor(grid->getConstAccessor());
 
 		/* only grids with uniform voxels can be used with VolumeRayIntersector */
 		if(grid->hasUniformVoxels()) {
 			uniform_voxels = true;
-			main_isector = new isector_t(*grid);
+			main_isector = NULL; /* (nathan) Don't need this with prior initializtion */
 		}
 		else {
 			uniform_voxels = false;
@@ -112,6 +162,7 @@ public:
 		{
 			delete iter->second;
 		}
+        point_samplers.clear();
 
 		for(box_map::iterator iter = box_samplers.begin();
 		    iter != box_samplers.end();
@@ -119,16 +170,18 @@ public:
 		{
 			delete iter->second;
 		}
+        box_samplers.clear();
 
 		if(uniform_voxels) {
-			delete main_isector;
-
+            //delete main_isector;
+            
 			for(isect_map::iterator iter = isectors.begin();
 			    iter != isectors.end();
 			    ++iter)
 			{
 				delete iter->second;
 			}
+            isectors.clear();
 		}
 	}
 
@@ -139,7 +192,11 @@ public:
 		if(sampling == OPENVDB_SAMPLE_POINT) {
 			point_map::iterator iter = point_samplers.find(thread);
 			point_sampler_t *sampler;
-
+            assert( iter != point_samplers.end() );
+            sampler = iter->second;
+            
+            /* (nathan This code is extremely risky. Can cause race conditions in the map very easily */
+            /*
 			if(iter == point_samplers.end()) {
 				openvdb::FloatGrid::ConstAccessor *acc = new openvdb::FloatGrid::ConstAccessor(*accessor);
 				sampler = new point_sampler_t(*acc, *transfrom);
@@ -149,13 +206,18 @@ public:
 			else {
 				sampler = iter->second;
 			}
+            */
 
 			return sampler->wsSample(openvdb::Vec3d(x, y, z));
 		}
 		else {
 			box_map::iterator iter = box_samplers.find(thread);
 			box_sampler_t *sampler;
+            assert( iter != box_samplers.end() );
+            sampler = iter->second;
 
+            /* (nathan This code is extremely risky. Can cause race conditions in the map very easily */
+            /*
 			if(iter == box_samplers.end()) {
 				openvdb::FloatGrid::ConstAccessor *acc = new openvdb::FloatGrid::ConstAccessor(*accessor);
 				sampler = new box_sampler_t(*acc, *transfrom);
@@ -165,6 +227,7 @@ public:
 			else {
 				sampler = iter->second;
 			}
+            */
 
 			return sampler->wsSample(openvdb::Vec3d(x, y, z));
 		}
@@ -175,7 +238,11 @@ public:
 		pthread_t thread = pthread_self();
 		isect_map::iterator iter = isectors.find(thread);
 		isector_t *vdb_isect;
+        assert( iter != isectors.end() );
+        vdb_isect = iter->second;
 
+        /* (nathan This code is extremely risky. Can cause race conditions in the map very easily */
+        /*
 		if(iter == isectors.end()) {
 			vdb_isect = new isector_t(*main_isector);
 			pair<pthread_t, isector_t *> inter(thread, vdb_isect);
@@ -184,6 +251,7 @@ public:
 		else {
 			vdb_isect = iter->second;
 		}
+        */
 
 		vdb_ray_t::Vec3Type P(ray->P.x, ray->P.y, ray->P.z);
 		vdb_ray_t::Vec3Type D(ray->D.x, ray->D.y, ray->D.z);
@@ -211,6 +279,7 @@ public:
 	{
 		pthread_t thread = pthread_self();
 		isect_map::iterator iter = isectors.find(thread);
+        assert( iter != isectors.end() );
 		isector_t *vdb_isect = iter->second;
 
 		openvdb::Real vdb_t0(*t0), vdb_t1(*t1);
